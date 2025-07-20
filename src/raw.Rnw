@@ -1,0 +1,361 @@
+% !Rnw weave = knitr
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Preambuła TeX-a. Można dodać brakujące pakiety w razie potrzeby
+
+\documentclass[12pt, a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage[colorlinks=true, linkcolor=blue]{hyperref}
+\usepackage{amsmath, amsthm, amssymb, amscd}
+\usepackage{enumerate}
+\usepackage{polski}
+\usepackage{float}
+\newtheorem{thm}{Twierdzenie}
+\newtheorem{lem}{Lemat}
+\newtheorem{cor}{Wniosek}
+\newtheorem{prop}{Propozycja}
+\newtheorem{rem}{Uwaga}
+\newtheorem{note}{Notka}
+\newtheorem{fact}{Fakt}
+\newtheorem{defn}{Definicja}
+\counterwithin{equation}{section}
+\def \E {\mathbb{E}}
+\def \P {\mathbb{P}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%NIE ZMIENIAĆ!
+\usepackage[top=2.5cm, bottom=2.5cm, left=2cm, right=2cm]{geometry}
+\makeatletter
+\newcommand\numerraportu[1]{\renewcommand\@title{}}
+\renewcommand{\maketitle}{
+    \begin{center}
+        \vspace{5pt}
+        \textbf{\Huge \sffamily Konstrukcja generatorów liczb losowych i symulacyjna analiza ich własności}\\
+        \vspace{15pt}
+        \textbf{\Large \sffamily \@title}\\
+        \vspace{10pt}
+        {\Large \sffamily \@author}\\
+        \vspace{10pt}
+        \hrulefill\\
+        \vspace{20pt}
+    \end{center}
+}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[R]{\thepage}
+\fancyhead[L]{\@author}
+\setlength{\headsep}{10pt}
+\makeatother
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+% Dane raportu - wypełniają studenci
+
+\author{Stanisław Olek}
+\numerraportu{1}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+
+%Poniżej chunk z kodem. Ponieważ tu są ustawienia globalne, np. pobierane biblioteki, nie chcemy by kod był wyświetlany w pliku PDF, więc wybieramy opcję echo=FALSE. Dla opcji echo=TRUE chunk z kodem będzie wyświetlany w pliku PDF. Jest też opcja eval, jeżeli ma wartość TRUE (domyślna), to kod z chunka będzie wykonywany a wynik zostanie zapisany w sesji R. Jeżeli ma wartość False, to kod z chunka nie będzie wykonywany a jedynie sprawdzany pod kątem poprawności.
+<<ustawienia_globalne, echo=FALSE>>=
+library(knitr)
+library(xtable) #pakiet do tworzenia tabel w formacie LaTeX'a
+knitr::opts_chunk$set(fig.align='center', fig.pos='H')
+@
+%Przed pierwszą kompilacją oba pakiety knitr i xtable muszą być zainstalowane przy pomocy komendy install.packages('nazwa pakietu') wywołanej w konsoli.
+
+%Strona tytułowa i spis treści
+\maketitle
+
+\tableofcontents
+\thispagestyle{plain}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\section{Problem 1 -- Generator kongruencyjny}
+\begin{itemize}
+\item Zaimplementuj liniowy generator kongruencyjny liczb pseudolosowych $x_1, x_2,\ldots$:
+$$(s_0=1)\quad s_n=as_{n-1}\; {\rm mod} \; m;\quad x_n=s_n/m,\quad n=1,2,\ldots, \mbox{gdzie}$$
+\begin{enumerate}
+\item[i] $m=37$, $a=19$,
+\item[ii] $m=2^{31}-1$, $a=39373$.
+\end{enumerate} 
+\item Sprawdź empirycznie, jaki okres ma pierwszy z tych generatorów.
+\item Narysuj $50$ kolejnych liczb pseudolosowych j.w. jako punkty na odcinku jednostkowym. Narysuj histogram. Skomentuj rysunek.
+\item Narysuj $50$ kolejnych par liczb pseudolosowych j.w. jako punkty na kwadracie jednostkowym. Skomentuj rysunek.
+\end{itemize}
+
+\medskip
+
+\noindent{\large\bf \sffamily Rozwiązanie:}
+\vspace{15pt}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{itemize}
+\item
+
+<<generator-kongruencyjny>>=
+generator_kongruencyjny <- function(a, m, n) {
+  s_n = c(1)
+  for (i in 1:n) {
+    k <- s_n[length(s_n)]
+    s_n <- c(s_n, (a * k) %% m)
+  }
+  x_n <- s_n / m
+  return(x_n[-1])
+}
+@
+
+
+\begin{description}
+\item[i] $m = 37, a=19$
+<<echo=FALSE>>=
+x = generator_kongruencyjny(19,37,50)
+x
+@
+
+
+\item[ii] $m = 2^{31}-1, a=39373$
+<<echo=FALSE>>=
+y = generator_kongruencyjny(39373, 2^31-1, 50)
+y
+@
+\end{description}
+
+
+\item
+<<echo>>=
+okres <- function(a, m) {
+  s_n = 1
+  wygenerowane = c(s_n)
+  okres = 1
+  while(TRUE) {
+    s_n <- (a * s_n) %% m
+    if(s_n %in% wygenerowane) {
+      break
+    } else {
+      wygenerowane <- c(wygenerowane, s_n)
+      okres <- okres + 1
+    }
+  }
+  return(okres)
+}
+@
+
+<<echo=FALSE>>=
+okres_pierwszy <- okres(19, 37)
+cat("Okres pierwszego generatora:", okres_pierwszy)
+@
+
+\break
+\item
+\begin{minipage}{\linewidth}
+<<echo=FALSE>>=
+hist(x,main="Histogram generator_kongruencyjny(19,37,50)", col="blue")
+@
+\end{minipage}
+Jeśli spojrzymy na histogram to wydaje się, że dane nie są idealnie równomiernie rozłożone, ponieważ liczba wystąpień w poszczególnych przedziałach różni się.
+Najwięcej obserwacji znajduje się w przedziale od 0.5 do 0.6, gdzie mamy 8 wystąpień. Najmniej obserwacji jest w ostatnim przedziale od 0.9 do 1.0, gdzie mamy tylko 3 wystąpienia. Pozostałe przedziały mają liczbę wystąpień między 4 a 7.
+Taki rozkład może sugerować, że dane nie są idealnie równomiernie rozłożone, ale nie ma też bardzo dużych odchyleń od równomierności.
+
+
+<<echo=FALSE>>=
+plot(x, rep(1, 50), xlim = c(0, 1), ylim = c(0,2), xlab = "x", ylab = "", pch = 20, yaxt = "n", main = "Punkty na odcinku jednostkowym")
+abline(h = 1, col="red")
+axis(2, at = 1, labels = "0", las = 1)
+@
+Jeśli spojrzymy na rozkład punktów na odcinku jednostkowym, możemy zauważyć, że liczby pseudolosowe wydają się być stosunkowo równomiernie rozłożone bez widocznych wzorców lub skupisk, pomimo że wartości m i a są stosunkowo małe.
+
+
+\break
+\item 
+\begin{minipage}{\linewidth}
+  <<echo=FALSE, fig.align='center', fig.show='hold'>>=
+  sto_gen <- generator_kongruencyjny(19,37,100)
+  x <- sto_gen[seq(1, 100, by = 2)]
+  y <- sto_gen[seq(2, 100, by = 2)]
+
+
+  plot(x, y, ylim = c(0,1))
+  title("Punkty na kwadracie jednostkowym")
+  @
+\end{minipage}
+
+Z uwagi na charakterystykę liniowych generatorów kongruentnych i małą wartość m punkty wykazują wyraźną regularność - układają się w linie. Świadczy to o tym, że liczby nie są równomiernie rozłożona na kwadracie, co jest typową cechą dla generatorów kongruentnych i małych wartości parametrów.
+
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\section{Problem 2 -- Generator standardowy w R}
+
+\begin{itemize}
+\item Narysuj $50$ kolejnych par liczb pseudolosowych jako punkty na kwadracie jednostkowym dla standardowego generatora zaimplementowanego w pakiecie R. 
+\item Czy otrzymane pary liczb pseudolosowych mają rozkład jednostajny na kwadracie $[0,1]^2$? Zaproponuj, jak to weryfikować. W jaki sposób ta własność łączy się z własnością niezależności kolejnych liczb?
+\item Jak inicjować obliczenia, żeby za każdym razem otrzymywać ten sam ciąg $50$-ciu par? Czy taka powtarzalność (replikowalność) jest sprzeczna z ideą symulacji pseudolosowych?
+ \end{itemize}
+
+\medskip
+
+\noindent{\large\bf \sffamily Rozwiązanie:}
+\vspace{15pt}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{itemize}
+\item
+\begin{minipage}{\linewidth}
+<<echo=FALSE>>=
+x <- runif(50)
+y <- runif(50)
+plot(x,y)
+title("Punkty na kwadracie jednostkowym standardowy generator")
+abline(h = 1/3,v=1/3,col="red")
+abline(h = 2/3,v=2/3,col="red")
+@
+\end{minipage}
+
+
+Tak, jeśli używamy funkcji \textbf{runif()}, otrzymujemy liczby pseudolosowe, które mają rozkład jednostajny na przedziale od 0 do 1. Kiedy generujemy pary takich liczb, zakładamy, że każda para jest punktem na kwadracie jednostkowym $[0, 1]^{2}$, gdzie każdy punkt ma taką samą szansę na pojawienie się w dowolnym miejscu na tym kwadracie.
+Aby zweryfikować, czy otrzymane pary liczb pseudolosowych mają rozkład jednostajny, można przeprowadzić test statystyczny, na przykład test chi-kwadrat Pearsona. Test ten pozwala sprawdzić, czy obserwowane częstości punktów w różnych obszarach kwadratu jednostkowego są zgodne z oczekiwaniami dla rozkładu jednostajnego.
+
+Oto przykładowy sposób weryfikacji:
+\begin{enumerate}
+  \item Podziel kwadrat jednostkowy na mniejsze, równomierne kwadraty (na przykład 3x3, co daje 9 mniejszych kwadratów).
+  \item Policz, ile punktów wpada do każdego z mniejszych kwadratów.
+  \item Porównaj obserwowane liczby z oczekiwanymi liczbami dla rozkładu jednostajnego.
+  \item Użyj testu chi-kwadrat do obliczenia p-wartości i zdecyduj, czy odrzucić hipotezę zerową o rozkładzie jednostajnym.
+\end{enumerate}
+
+Własność niezależności kolejnych liczb w generatorze liczb pseudolosowych jest ważna, ponieważ oznacza, że każda liczba jest generowana bez wpływu na poprzednie liczby. Dla rozkładu jednostajnego na kwadracie jednostkowym oznacza to, że położenie jednego punktu nie wpływa na położenie kolejnego. Jeśli liczby nie byłyby niezależne, moglibyśmy zauważyć wzorce lub "skupiska" punktów na kwadracie, co wskazywałoby na problem z generatorem liczb pseudolosowych.
+
+
+\break
+
+\item
+Aby za każdym razem otrzymywać ten sam ciąg 50-ciu par liczb pseudolosowych, należy zainicjować generator liczb pseudolosowych tym samym "ziarnem", wykorzystując komendę:
+<<eval=FALSE>>=
+set.seed(n)
+@
+gdzie \textbf{n} jest pewną liczbą naturalną.
+
+\item
+Powtarzalność nie jest sprzeczna z ideą symulacji pseudolosowych. Wręcz przeciwnie, jest to jedna z pożądanych cech generatorów liczb pseudolosowych. Generatory liczb pseudolosowych są deterministyczne, co oznacza, że dla tego samego ziarna zawsze wygenerują ten sam ciąg liczb. To pozwala na replikację eksperymentów i testów.
+Idea symulacji pseudolosowych polega na tym, że choć liczby generowane przez te algorytmy są deterministyczne (i w tym sensie nie są "prawdziwie" losowe), ich właściwości statystyczne sprawiają, że w wielu zastosowaniach są one wystarczająco "dobre" do naśladowania losowości.
+
+\end{itemize}
+
+
+\newpage
+\section{Problem 3 -- Symulacja dyskretnych zmiennych losowych}
+
+\begin{itemize}
+\item Napisz generator liczb losowych o rozkładzie dwupunktowym: $\mathbb P(X=1)=p$, $\mathbb P(X=0)=1-p$, gdzie $p\in [0,1]$.
+
+\item Napisz generator liczb losowych dla rozkładu dwumianowego. Narysuj histogram dla próby (prostej) z tego rozkładu.
+
+\item Napisz generator dla rozkładu Poissona. Wykonaj odręcznie obliczenia przygotowawcze. 
+Działanie generatora sprawdź poprzez analizę histogramów lub w inny sposób.
+\end{itemize}
+
+\medskip
+
+\noindent{\large\bf \sffamily Rozwiązanie:}
+\vspace{15pt}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{itemize}
+
+\item
+<<generator_dwupunktowy>>=
+gen_0_1 <- function(p) {
+  x <- runif(1)
+  if(x <= p){
+    return(1)
+  }
+  else{
+    return(0)
+  }
+}
+
+generator_dwupunktowy <- function(n,p){
+  x <- c(1)
+  for (i in 1:n)
+    x[i] <- gen_0_1(p)
+  return(x)
+}
+
+@
+
+\item
+<<generator_dwumianowy>>=
+generator_dwumianowy <- function(n, m, p) {
+  x <- c(1)
+  for (i in 1:n) {
+    u = runif(m);
+    b = (u < p);
+    x[i] = sum(b)
+  }
+  return(x)
+}
+@
+
+\break
+Generator rozkładu dwumianowego dla parametrów: $n=100, m=10, p=\frac{1}{2}$
+<<echo=FALSE>>=
+rozklad_dwumianowy <- generator_dwumianowy(1000,10,0.5)
+hist(rozklad_dwumianowy, main = "Rozklad dwumianowy", xlim = c(0, 10), xlab = "Liczba sukcesow", ylab = "Czestosc", col = "blue", border = "white")
+@
+
+\item
+Generator rozkładu Poissona dla parametrów: $n=100, \lambda=5$
+<<rozklad_poissona>>=
+generator_poissona <- function(n,lambda) {
+  tab <- c(0)
+  for(i in 1:n){
+    L <- exp(-lambda)
+    k <- 0
+    iloczyn_p <- 1
+    while(TRUE) {
+      u <- runif(1)
+      iloczyn_p <- iloczyn_p * u
+      if(iloczyn_p >= L){
+        k <- k + 1
+      } else{
+        tab[i] <- k
+        break
+      }
+    }
+  } 
+  return(tab)
+}
+@
+
+<<echo=FALSE>>=
+rozklad_poissona <- generator_poissona(1000,10)
+hist(rozklad_poissona, main = "Rozklad Poissona implementacja", xlab = "Liczba sukcesow", xlim = c(0, 25), ylab = "Czestosc", col = "blue", border = "white")
+
+rozklad_poissona_wbudo <- rpois(1000,10)
+hist(rozklad_poissona_wbudo, main = "Rozklad Poissona rpois()", xlim = c(0, 25), xlab = "Liczba sukcesow", ylab = "Czestosc", col = "blue", border = "white")
+
+@
+
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\end{document}
