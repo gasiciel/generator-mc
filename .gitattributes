@@ -1,0 +1,3 @@
+*.Rnw linguist-language=R
+*.tex linguist-language=R
+*.log linguist-language=R
